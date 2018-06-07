@@ -12,8 +12,10 @@ import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.immutable._
 
 import com.typesafe.scalalogging.LazyLogging
+
 
 
 
@@ -21,7 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 /**
   * Client that performs the polls for the web socket source function
   */
-class WebSocketClient(url: String,objectName: String, callback: String => Unit) extends LazyLogging {
+class WebSocketClient(url: String,objectName: String, callback: String => Unit,headerFactory: Option[() => Future[Seq[HttpHeader]]]) extends LazyLogging {
   implicit val system: ActorSystem = ActorSystem.create("WebSocketClient")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -103,7 +105,13 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit) 
     * @return a future when the connection has been opened
     */
   def open(): Future[Unit] = async {
-    val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url))
+    //Obtain headers
+    val headers = headerFactory match {
+      case Some(f) => await(f())
+      case None => Seq.empty[HttpHeader]
+    }
+
+    val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url,headers))
 
     val ((q, upgradeResponse),s) = Source.queue[Message](Int.MaxValue, OverflowStrategy.backpressure)
       .viaMat(webSocketFlow)(Keep.both)
@@ -152,8 +160,21 @@ trait WebSocketClientFactory extends Serializable {
     * @return
     */
   def getSocket(url: String,objectName: String, callback: String => Unit): WebSocketClient
+
+  /**
+    * Construct a new web socket with a header factory
+    * @param url url to the web socket
+    * @param objectName name of the object to request
+    * @param callback callback method for data received from the web socket
+    * @param factory factory obtaining the headers asynchronously
+    * @return
+    */
+  def getSocket(url: String,objectName: String, callback: String => Unit, factory: () => Future[Seq[HttpHeader]]): WebSocketClient
 }
 
 object WebSocketClientFactory extends WebSocketClientFactory  {
-  override def getSocket(url: String, objectName: String, callback: String => Unit): WebSocketClient = new WebSocketClient(url,objectName,callback)
+  override def getSocket(url: String, objectName: String, callback: String => Unit): WebSocketClient = new WebSocketClient(url,objectName,callback,None)
+
+  override def getSocket(url: String, objectName: String, callback: String => Unit, factory: () => Future[Seq[HttpHeader]]) =
+    new WebSocketClient(url,objectName,callback,Some(factory))
 }

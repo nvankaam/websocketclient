@@ -61,6 +61,11 @@
       <version>2.5.12</version>
       <scope>test</scope>
     </dependency>
+      <dependency>
+          <groupId>com.typesafe.akka</groupId>
+          <artifactId>akka-http-spray-json_2.12</artifactId>
+          <version>10.1.1</version>
+      </dependency>
 
       <!-- Akka Streams -->
   <dependency>
@@ -161,12 +166,14 @@
                     <configuration>
                         <artifactSet>
                             <excludes>
-                                <exclude>org.scalatest:*</exclude>
-                                <exclude>ch.qos.logback:*</exclude>
+                                <exclude>org.scala-lang:*</exclude>
+                                <exclude>org.scala-lang.modules</exclude>
                                 <exclude>com.typesafe.scala-logging:*</exclude>
-                                <exclude>org.scala-lang.modules:*</exclude>
-                                <exclude>org.apache.maven:lib:tests</exclude>
+                                <exclude>com.typesafe:config:*</exclude>
+                                <exclude>ch.qos.logback:*</exclude>
+                                <exclude>org.scalatest:*</exclude>
                                 <exclude>log4j:log4j:jar:</exclude>
+                                <exclude>org.slf4j:*</exclude>
                             </excludes>
                         </artifactSet>
                         <transformers>
