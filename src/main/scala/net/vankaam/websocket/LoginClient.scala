@@ -7,45 +7,40 @@ import akka.http.scaladsl.model._
 import spray.json._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection._
-import scala.concurrent.duration._
 import scala.async.Async.{async, await}
 
 /**
   * Simple client that performs a post to a url and obtains the cookie header
   */
-class LoginCookieClient extends LazyLogging with Serializable {
-  @transient
-  implicit lazy val system: ActorSystem = ActorSystem.create("WebSocketClient")
+class LoginCookieClient(uri:String, content:LoginRequest) extends LazyLogging with Serializable {
 
-  def GetLoginCookie(uri: String, content: LoginRequest): Future[HttpCookie] = async  {
-    logger.debug("Requesting cookie")
-    val entity = await(Marshal(content).to[RequestEntity])
-    val response = await(Http().singleRequest(HttpRequest(HttpMethods.POST, uri, entity = entity)))
-    val cookieHeaders = response.headers.collect { case `Set-Cookie`(x) => x }
-    if(response.status.intValue() != 200) {
-      throw new IllegalStateException(response.entity.toString)
-    }
-    if(cookieHeaders.size > 1) {
-      throw new IllegalStateException(s"Multiple cookie headers recieved")
-    }
-    logger.debug("Got cookie")
-    cookieHeaders.head
+  def GetLoginCookie(implicit system:ActorSystem): Future[HttpCookie] = async {
+      logger.debug("Requesting cookie")
+      val entity = await(Marshal(content).to[RequestEntity])
+      val response = await(Http().singleRequest(HttpRequest(HttpMethods.POST, uri, entity = entity)))
+      val cookieHeaders = response.headers.collect { case `Set-Cookie`(x) => x }
+      if (response.status.intValue() != 200) {
+        throw new IllegalStateException(response.entity.toString)
+      }
+      if (cookieHeaders.size > 1) {
+        throw new IllegalStateException(s"Multiple cookie headers recieved")
+      }
+      logger.debug("Got cookie")
+      cookieHeaders.head
   }
 
   /**
     * Retrieves a cookie header
-    * @param uri to request cookie on
-    * @param content content to obtain the cookie
     * @return
     */
-  def GetCookieHeader(uri:String, content:LoginRequest):Future[immutable.Seq[HttpHeader]] = async {
-    val cookie = await(GetLoginCookie(uri,content))
+  def GetCookieHeader(implicit system:ActorSystem):Future[immutable.Seq[HttpHeader]] = async {
+    val cookie = await(GetLoginCookie(system))
     val header = akka.http.scaladsl.model.headers.Cookie(cookie.pair())
     immutable.Seq(header)
   }

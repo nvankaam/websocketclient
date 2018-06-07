@@ -23,7 +23,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
   private val password = config.getString("test.websocketclientspec.password")
   private val wssData = config.getString("test.websocketclientspec.wssData")
 
-  "WebSocketClient" should "Retrieve and push data from a websocket" taggedAs(Slow) in async {
+  "WebSocketClient" should "Retrieve and push data from a websocket" taggedAs Slow in async {
 
     val buffer = new mutable.ListBuffer[String]()
     val socket = new WebSocketClient(uri,data,buffer+=_,None)
@@ -37,13 +37,12 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     assert(buffer.size == 400)
   }
 
-  "WebSocketClient with Cookie" should "log in and use the cookie on the websocket" taggedAs(Slow) in async {
-    val loginClient = new LoginCookieClient()
+  "WebSocketClient with Cookie" should "log in and use the cookie on the websocket" taggedAs Slow in async {
     val loginRequest = LoginRequest(username,password)
-    val cookieFactory = () => loginClient.GetCookieHeader(wssLoginUri,loginRequest)
+    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
-    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(cookieFactory))
+    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient))
 
     await(blocking {socket.open()})
     await(blocking{socket.poll(0,2)})
@@ -54,5 +53,20 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     assert(buffer.size == 4)
   }
 
-  //TODO: Add unit (not integration) tests for the entire behavior
+  it should "close the connection if all data has been recieved"  taggedAs Slow in async {
+    val loginRequest = LoginRequest(username,password)
+    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+
+    val buffer = new mutable.ListBuffer[String]()
+    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient))
+
+    await(blocking {socket.open()})
+    await(blocking{socket.poll(0,20)})
+    await(blocking{socket.poll(20,200)})
+
+    logger.info(s"Closing socket")
+    socket.close()
+    assert(buffer.size >= 78)
+  }
+
 }

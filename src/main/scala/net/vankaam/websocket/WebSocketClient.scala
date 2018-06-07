@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 /**
   * Client that performs the polls for the web socket source function
   */
-class WebSocketClient(url: String,objectName: String, callback: String => Unit,headerFactory: Option[() => Future[immutable.Seq[HttpHeader]]]) extends LazyLogging {
+class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient]) extends LazyLogging {
   implicit val system: ActorSystem = ActorSystem.create("WebSocketClient")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -92,7 +92,7 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,h
   /**
     * Handler for messages during intialization fase
     * For now just ignores the first two messages
-    * @param str
+    * @param str message to intialize the stream with
     */
   private def initMessage(str: String): Unit = {
     initMessages +=1
@@ -127,8 +127,8 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,h
     */
   def open(): Future[Unit] = async {
     //Obtain headers
-    val headers = headerFactory match {
-      case Some(f) => await(f())
+    val headers = loginClient match {
+      case Some(f) => await(f.GetCookieHeader)
       case None => immutable.Seq.empty[HttpHeader]
     }
 
@@ -189,15 +189,15 @@ trait WebSocketClientFactory extends Serializable {
     * @param url url to the web socket
     * @param objectName name of the object to request
     * @param callback callback method for data received from the web socket
-    * @param factory factory obtaining the headers asynchronously
+    * @param loginClient factory obtaining the headers asynchronously
     * @return
     */
-  def getSocket(url: String,objectName: String, callback: String => Unit, factory: () => Future[immutable.Seq[HttpHeader]]): WebSocketClient
+  def getSocket(url: String,objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient]): WebSocketClient
 }
 
 object WebSocketClientFactory extends WebSocketClientFactory  {
   override def getSocket(url: String, objectName: String, callback: String => Unit): WebSocketClient = new WebSocketClient(url,objectName,callback,None)
 
-  override def getSocket(url: String, objectName: String, callback: String => Unit, factory: () => Future[immutable.Seq[HttpHeader]]) =
-    new WebSocketClient(url,objectName,callback,Some(factory))
+  override def getSocket(url: String, objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient]) =
+    new WebSocketClient(url,objectName,callback,loginClient)
 }
