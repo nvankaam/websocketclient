@@ -12,7 +12,7 @@ import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import java.util.concurrent.atomic.AtomicInteger
-import scala.collection.immutable._
+import scala.collection._
 
 import com.typesafe.scalalogging.LazyLogging
 
@@ -23,9 +23,12 @@ import com.typesafe.scalalogging.LazyLogging
 /**
   * Client that performs the polls for the web socket source function
   */
-class WebSocketClient(url: String,objectName: String, callback: String => Unit,headerFactory: Option[() => Future[Seq[HttpHeader]]]) extends LazyLogging {
+class WebSocketClient(url: String,objectName: String, callback: String => Unit,headerFactory: Option[() => Future[immutable.Seq[HttpHeader]]]) extends LazyLogging {
   implicit val system: ActorSystem = ActorSystem.create("WebSocketClient")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+
+  private var initMessages = 0
+  private val initializePromise = Promise[Unit]()
 
   /*
     Queue used to push messages onto the web socket
@@ -71,13 +74,31 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,h
     * @param message message to wait for
     */
   private def onNextMessage(message:String): Unit = {
-        callback(message)
-        val newValue = expecting.decrementAndGet()
-        //If we received all messages the poll has finished
-        if (newValue == 0) {
-          logger.debug("Poll has completed")
-          pollComplete.success(true)
+        logger.trace(s"Got message: $message")
+        if(initializePromise.isCompleted) {
+
+          callback(message)
+          val newValue = expecting.decrementAndGet()
+          //If we received all messages the poll has finished
+          if (newValue == 0) {
+            logger.debug("Poll has completed")
+            pollComplete.success(true)
+          }
+        } else {
+          initMessage(message)
         }
+  }
+
+  /**
+    * Handler for messages during intialization fase
+    * For now just ignores the first two messages
+    * @param str
+    */
+  private def initMessage(str: String): Unit = {
+    initMessages +=1
+    if(initMessages == 2) {
+      initializePromise.success(())
+    }
   }
 
   def onClosed:Future[Unit] = onClose
@@ -108,7 +129,7 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,h
     //Obtain headers
     val headers = headerFactory match {
       case Some(f) => await(f())
-      case None => Seq.empty[HttpHeader]
+      case None => immutable.Seq.empty[HttpHeader]
     }
 
     val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url,headers))
@@ -133,8 +154,10 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,h
     }
     await(connected)
 
+    logger.info("Connected to socket. Requesting subject")
     //Initialize the server with the object
     await(queue.offer(TextMessage(objectName)))
+    await(initializePromise.future)
     logger.info(s"Socket opened and ready to receive data")
   }
 
@@ -169,12 +192,12 @@ trait WebSocketClientFactory extends Serializable {
     * @param factory factory obtaining the headers asynchronously
     * @return
     */
-  def getSocket(url: String,objectName: String, callback: String => Unit, factory: () => Future[Seq[HttpHeader]]): WebSocketClient
+  def getSocket(url: String,objectName: String, callback: String => Unit, factory: () => Future[immutable.Seq[HttpHeader]]): WebSocketClient
 }
 
 object WebSocketClientFactory extends WebSocketClientFactory  {
   override def getSocket(url: String, objectName: String, callback: String => Unit): WebSocketClient = new WebSocketClient(url,objectName,callback,None)
 
-  override def getSocket(url: String, objectName: String, callback: String => Unit, factory: () => Future[Seq[HttpHeader]]) =
+  override def getSocket(url: String, objectName: String, callback: String => Unit, factory: () => Future[immutable.Seq[HttpHeader]]) =
     new WebSocketClient(url,objectName,callback,Some(factory))
 }
