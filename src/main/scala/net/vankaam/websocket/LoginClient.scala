@@ -13,19 +13,24 @@ import akka.actor.ActorSystem
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection._
+import scala.concurrent.duration._
 import scala.async.Async.{async, await}
 
 /**
   * Simple client that performs a post to a url and obtains the cookie header
   */
-class LoginCookieClient extends LazyLogging {
-  implicit val system: ActorSystem = ActorSystem.create("WebSocketClient")
+class LoginCookieClient extends LazyLogging with Serializable {
+  @transient
+  implicit lazy val system: ActorSystem = ActorSystem.create("WebSocketClient")
 
   def GetLoginCookie(uri: String, content: LoginRequest): Future[HttpCookie] = async  {
     logger.debug("Requesting cookie")
     val entity = await(Marshal(content).to[RequestEntity])
     val response = await(Http().singleRequest(HttpRequest(HttpMethods.POST, uri, entity = entity)))
     val cookieHeaders = response.headers.collect { case `Set-Cookie`(x) => x }
+    if(response.status.intValue() != 200) {
+      throw new IllegalStateException(response.entity.toString)
+    }
     if(cookieHeaders.size > 1) {
       throw new IllegalStateException(s"Multiple cookie headers recieved")
     }
