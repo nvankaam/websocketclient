@@ -158,10 +158,6 @@
           <artifactId>scalactic_2.11</artifactId>
           <groupId>org.scalactic</groupId>
         </exclusion>
-        <exclusion>
-          <artifactId>scala-xml_2.11</artifactId>
-          <groupId>org.scala-lang.modules</groupId>
-        </exclusion>
       </exclusions>
     </dependency>
   </dependencies>

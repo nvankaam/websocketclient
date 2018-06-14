@@ -1,7 +1,7 @@
 package net.vankaam.websocket
 
 import akka.Done
-import akka.actor.ActorSystem
+import net.vankaam.websocket.ActorSystemManager.actorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws._
@@ -24,7 +24,6 @@ import com.typesafe.scalalogging.LazyLogging
   * Client that performs the polls for the web socket source function
   */
 class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient]) extends LazyLogging {
-  implicit val system: ActorSystem = ActorSystem.create("WebSocketClient")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private var initMessages = 0
@@ -42,7 +41,6 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
 
 
   private val onClose:Future[Unit] = closePromise.future.flatMap(_ => async {
-    await(system.terminate())
     logger.info("Actor system for web socket client terminated")
     if(!pollComplete.isCompleted) {
       logger.info("Finishing poll complete because socket has closed")
@@ -152,13 +150,23 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
         throw new RuntimeException(s"Connection failed: ${upgrade.response.status}")
       }
     }
-    await(connected)
 
-    logger.info("Connected to socket. Requesting subject")
-    //Initialize the server with the object
-    await(queue.offer(TextMessage(objectName)))
-    await(initializePromise.future)
-    logger.info(s"Socket opened and ready to receive data")
+
+
+
+
+    await(orClosed(connected))
+
+    if(closePromise.isCompleted) {
+      logger.error(s"Error while connecting. Closepromise completed")
+      throw new IllegalStateException("Error while connecting. Closepromise completed")
+    } else {
+      logger.info("Connected to socket. Requesting subject")
+      //Initialize the server with the object
+      await(orClosed(queue.offer(TextMessage(objectName))))
+      await(orClosed(initializePromise.future))
+      logger.info(s"Socket opened and ready to receive data")
+    }
   }
 
   /**
@@ -169,6 +177,10 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
       queue.complete()
     }
   }
+
+
+  def orClosed[T](f:Future[T]) =
+    Future.firstCompletedOf(List(f,closePromise.future))
 
 
 }
