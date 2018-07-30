@@ -15,7 +15,8 @@ import scala.concurrent.duration._
   * TODO: Implementation
   */
 class LoginClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with LazyLogging {
-  val timeout = PatienceConfiguration.Timeout(30.seconds)
+  val configuredTimeout = ConfigFactory.load().getInt("websocketclient.loginpatience")
+  val timeout = PatienceConfiguration.Timeout(Duration(configuredTimeout,SECONDS))
   implicit val system: ActorSystem = ActorSystem.create("WebSocketClient")
 
 

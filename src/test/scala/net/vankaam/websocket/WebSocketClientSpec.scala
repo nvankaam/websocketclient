@@ -23,6 +23,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
   private val password = config.getString("test.websocketclientspec.password")
   private val wssData = config.getString("test.websocketclientspec.wssData")
 
+  /*
   "WebSocketClient" should "Retrieve and push data from a websocket" taggedAs Slow in async {
 
     val buffer = new mutable.ListBuffer[String]()
@@ -36,6 +37,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     socket.close()
     assert(buffer.size == 400)
   }
+  */
 
   "WebSocketClient with Cookie" should "log in and use the cookie on the websocket" taggedAs Slow in async {
     val loginRequest = LoginRequest(username,password)
@@ -44,7 +46,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     val buffer = new mutable.ListBuffer[String]()
     val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient))
 
-    await(blocking {socket.open()})
+    await(blocking{socket.open()})
     await(blocking{socket.poll(0,2)})
     await(blocking{socket.poll(2,2)})
 
@@ -69,4 +71,32 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     assert(buffer.size >= 78)
   }
 
+  it should "throw an exception if an unknown entity has been recieved" taggedAs Slow in async {
+    val loginRequest = LoginRequest(username,password)
+    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+
+    val buffer = new mutable.ListBuffer[String]()
+    val socket = new WebSocketClient(wssUri,"idonotexist",buffer+=_,Some(loginClient))
+
+    val r = await(blocking {socket.open()}.map(Right(_)).recover {case e => Left(e)})
+
+    assert(r.isLeft)
+  }
+
+
+  /** TODO: This test assumes an error during the poll */
+/*
+  it should "throw an exception during polling if an error occurs during the poll" taggedAs Slow in async{
+    val loginRequest = LoginRequest(username,password)
+    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+
+    val buffer = new mutable.ListBuffer[String]()
+    val socket = new WebSocketClient(wssUri,"Cir.WatInsolventieViewPerson",buffer+=_,Some(loginClient))
+
+    val r = await(blocking {socket.open()}.map(Right(_)).recover {case e => Left(e)})
+    val f = await(blocking{socket.poll(0,5000)}.map(Right(_)).recover {case e => Left(e)})
+
+    assert(f.isLeft)
+  }
+*/
 }

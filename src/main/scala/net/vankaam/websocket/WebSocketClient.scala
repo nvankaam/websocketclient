@@ -1,7 +1,6 @@
 package net.vankaam.websocket
 
 import akka.Done
-import net.vankaam.websocket.ActorSystemManager.actorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws._
@@ -12,8 +11,10 @@ import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import java.util.concurrent.atomic.AtomicInteger
-import scala.collection._
 
+import akka.actor.ActorSystem
+
+import scala.collection._
 import com.typesafe.scalalogging.LazyLogging
 
 
@@ -25,6 +26,7 @@ import com.typesafe.scalalogging.LazyLogging
   */
 class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient]) extends LazyLogging {
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+  @transient implicit lazy val actorSystem = ActorSystem("WebSocketClient")
 
   private var initMessages = 0
   private val initializePromise = Promise[Unit]()
@@ -40,13 +42,26 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
   private val closePromise = Promise[Unit]()
 
 
-  private val onClose:Future[Unit] = closePromise.future.flatMap(_ => async {
-    logger.info("Actor system for web socket client terminated")
-    if(!pollComplete.isCompleted) {
-      logger.info("Finishing poll complete because socket has closed")
-      pollComplete.success(false)
-    }
-  })
+  private val onClose:Future[Unit] = async {
+    closePromise.future.flatMap(_ => actorSystem.terminate()).onComplete(t => {
+      if(t.isFailure) {
+        logger.error("Closepromise produced an error: ",t.failed.get)
+        if(!pollComplete.isCompleted) {
+          pollComplete.failure(t.failed.get)
+        }
+      } else {
+        logger.info("Actor system for web socket client terminated")
+        logger.info("Finishing poll complete because socket has closed")
+        if(!pollComplete.isCompleted) {
+          pollComplete.success(false)
+        }
+      }
+    })
+
+  }
+
+
+
 
 
 
@@ -73,15 +88,24 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
     */
   private def onNextMessage(message:String): Unit = {
         logger.trace(s"Got message: $message")
+      if(message.startsWith("error") || message.startsWith("Error")) {
+        val error = new IllegalStateException(message)
+        logger.error(message,error)
+        closePromise.failure(error)
+        pollComplete.failure(error)
+      }
         if(initializePromise.isCompleted) {
+          message.split('\n').foreach(o => {
+            val newValue = expecting.decrementAndGet()
+            callback(o)
+            if (newValue == 0) {
+              logger.debug("Poll has completed")
+              pollComplete.success(true)
+            }
+          })
 
-          callback(message)
-          val newValue = expecting.decrementAndGet()
           //If we received all messages the poll has finished
-          if (newValue == 0) {
-            logger.debug("Poll has completed")
-            pollComplete.success(true)
-          }
+
         } else {
           initMessage(message)
         }
@@ -143,7 +167,21 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
     }
 
     //When done, finish the close promise
-    s.onComplete(_ => closePromise.success())
+    //If an error occured, the promise might already be completed at this point
+    s.onSuccess {case _ => {
+      logger.info("Websocket stream has completed.")
+      if(!closePromise.isCompleted) {
+        closePromise.success()
+      }
+    }}
+    s.onFailure {case t:Throwable=> {
+      logger.error(s"Error in stream: ${t.getMessage}",t)
+      if(!closePromise.isCompleted) {
+        closePromise.failure(t)
+      }
+    }}
+
+
 
     val connected = upgradeResponse.map { upgrade =>
       if (upgrade.response.status != StatusCodes.SwitchingProtocols) {
