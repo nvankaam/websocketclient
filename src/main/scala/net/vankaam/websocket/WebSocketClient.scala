@@ -174,7 +174,13 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
         closePromise.success()
       }
     }}
-    s.onFailure {case t:Throwable=> {
+    s.onFailure {
+      case e:PeerClosedConnectionException =>
+        logger.warn(s"Received closed connection exception: ",e)
+        if(!closePromise.isCompleted) {
+          closePromise.success()
+        }
+      case t:Throwable=> {
       logger.error(s"Error in stream: ${t.getMessage}",t)
       if(!closePromise.isCompleted) {
         closePromise.failure(t)

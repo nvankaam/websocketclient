@@ -81,6 +81,7 @@
                   <exclude>org.scalatest:*</exclude>
                   <exclude>log4j:log4j:jar:</exclude>
                   <exclude>org.slf4j:*</exclude>
+                  <exclude>org.json4s:*</exclude>
                 </excludes>
               </artifactSet>
               <transformers>
@@ -129,6 +130,18 @@
           <groupId>ch.qos.logback</groupId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.json4s</groupId>
+      <artifactId>json4s-native_2.11</artifactId>
+      <version>3.6.0-M2</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.json4s</groupId>
+      <artifactId>json4s-ext_2.11</artifactId>
+      <version>3.6.0-M2</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.typesafe.akka</groupId>
