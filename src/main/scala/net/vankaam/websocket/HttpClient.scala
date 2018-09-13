@@ -57,12 +57,12 @@ class HttpClient {
     */
   def post[TData <: AnyRef, TResult: Manifest](uri: String, data: TData)(timeout:Duration): Future[Either[Exception, TResult]] = {
     val headers = immutable.Seq.empty[HttpHeader]
-    postWithHeaders[TData, TResult](uri, data, headers)
+    postWithHeaders[TData, TResult](uri, data, headers)(timeout)
   }
 
-  def postBasicAuth[TData <: AnyRef, TResult: Manifest](uri: String, data: TData, username: String, password: String): Future[Either[Exception, TResult]] = {
+  def postBasicAuth[TData <: AnyRef, TResult: Manifest](uri: String, data: TData, username: String, password: String)(timeout:Duration): Future[Either[Exception, TResult]] = {
     val auth = headers.Authorization(headers.BasicHttpCredentials(username, password))
-    postWithHeaders[TData, TResult](uri, data, List(auth))
+    postWithHeaders[TData, TResult](uri, data, List(auth))(timeout)
   }
 
   /**
