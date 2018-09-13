@@ -6,6 +6,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.LazyLogging
@@ -19,6 +20,7 @@ import scala.collection._
 import scala.concurrent.{Await, Future}
 import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
 
 
 
@@ -48,11 +50,12 @@ class HttpClient {
     *
     * @param uri  uri to post to
     * @param data the data to post
+    * @param timeout Timeout for the post
     * @tparam TData   type of the data to post
     * @tparam TResult type of the result to recieve
     * @return
     */
-  def post[TData <: AnyRef, TResult: Manifest](uri: String, data: TData): Future[Either[Exception, TResult]] = {
+  def post[TData <: AnyRef, TResult: Manifest](uri: String, data: TData)(timeout:Duration): Future[Either[Exception, TResult]] = {
     val headers = immutable.Seq.empty[HttpHeader]
     postWithHeaders[TData, TResult](uri, data, headers)
   }
@@ -79,7 +82,7 @@ class HttpClient {
   }
 
 
-  def postWithHeaders[TData <: AnyRef, TResult: Manifest](uri: String, data: TData, headers: immutable.Seq[HttpHeader]): Future[Either[Exception, TResult]] = async {
+  def postWithHeaders[TData <: AnyRef, TResult: Manifest](uri: String, data: TData, headers: immutable.Seq[HttpHeader])(timeout:Duration): Future[Either[Exception, TResult]] = async {
     import de.heikoseeberger.akkahttpjson4s.Json4sSupport._
     if (logger.isTraceEnabled()) {
       logger.trace(s"Marshalling entity for uri $uri")
@@ -96,11 +99,17 @@ class HttpClient {
       }
     }
 
+    //Create connectionpoolsettings with timeout
+    val orig = ConnectionPoolSettings(actorSystem.settings.config).copy(idleTimeout = timeout)
+    //Change the timeout on the clientconnection aswell. Note that this is a different timeout than above
+    val clientSettings = orig.connectionSettings.withIdleTimeout(timeout)
+    val settings = orig.copy(connectionSettings = clientSettings)
+
     val webRequestResult = entityResult match {
       case Left(e) => Left(e)
       case Right(entity) => {
         val request = HttpRequest(HttpMethods.POST, uri, headers, entity)
-        await(Http().singleRequest(request).map(o => Right(o)).recover { case e: Exception => Left(e) })
+        await(Http().singleRequest(request,settings=settings).map(o => Right(o)).recover { case e: Exception => Left(e) })
       }
     }
 
@@ -133,4 +142,6 @@ class HttpClient {
   def close(): Unit = {
     actorSystem.terminate()
   }
+
+
 }

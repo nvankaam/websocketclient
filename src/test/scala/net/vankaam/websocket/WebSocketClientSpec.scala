@@ -83,6 +83,18 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     assert(r.isLeft)
   }
 
+  "WebSocketClient.open" should "return none when the server denies the request" in async {
+    val loginRequest = LoginRequest(username,password)
+    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+
+    val buffer = new mutable.ListBuffer[String]()
+    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient))
+
+
+    val result = await(socket.open())
+    assert(!result)
+  }
+
 
   /** TODO: This test assumes an error during the poll */
 /*

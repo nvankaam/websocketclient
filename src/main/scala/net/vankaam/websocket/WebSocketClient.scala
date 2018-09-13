@@ -29,7 +29,7 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
   @transient implicit lazy val actorSystem = ActorSystem("WebSocketClient")
 
   private var initMessages = 0
-  private val initializePromise = Promise[Unit]()
+  private val initializePromise = Promise[Boolean]()
 
   /*
     Queue used to push messages onto the web socket
@@ -117,9 +117,13 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
     * @param str message to intialize the stream with
     */
   private def initMessage(str: String): Unit = {
+    if(str == "EntityStreamController is busy") {
+      initializePromise.success(false)
+    }
     initMessages +=1
     if(initMessages == 2) {
-      initializePromise.success(())
+      logger.debug(s"Got debug message: $str")
+      initializePromise.success((true))
     }
   }
 
@@ -147,7 +151,7 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
     * Opens the web socket connection
     * @return a future when the connection has been opened
     */
-  def open(): Future[Unit] = async {
+  def open(): Future[Boolean] = async {
     //Obtain headers
     val headers = loginClient match {
       case Some(f) => await(f.GetCookieHeader)
@@ -168,7 +172,7 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
 
     //When done, finish the close promise
     //If an error occured, the promise might already be completed at this point
-    s.onSuccess {case _ => {
+    s.onSuccess {case b => {
       logger.info("Websocket stream has completed.")
       if(!closePromise.isCompleted) {
         closePromise.success()
@@ -210,6 +214,13 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
       await(orClosed(queue.offer(TextMessage(objectName))))
       await(orClosed(initializePromise.future))
       logger.info(s"Socket opened and ready to receive data")
+    }
+    //Return false if initialize was denied
+    //In all other cases return true
+    if(initializePromise.future.isCompleted) {
+     initializePromise.future.value.get.getOrElse(true)
+    } else {
+      true
     }
   }
 
