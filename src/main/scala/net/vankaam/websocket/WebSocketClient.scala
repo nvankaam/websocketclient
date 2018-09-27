@@ -259,7 +259,7 @@ trait WebSocketClientFactory extends Serializable {
     * @param callback callback method for data received from the web socket
     * @return
     */
-  def getSocket(url: String,objectName: String, callback: String => Unit): WebSocketClient
+  def getSocket(url: String,objectName: String, callback: String => Unit,config:Config): WebSocketClient
 
   /**
     * Construct a new web socket with a header factory
@@ -269,12 +269,12 @@ trait WebSocketClientFactory extends Serializable {
     * @param loginClient factory obtaining the headers asynchronously
     * @return
     */
-  def getSocket(url: String,objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient]): WebSocketClient
+  def getSocket(url: String,objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient],config:Config): WebSocketClient
 }
 
 object WebSocketClientFactory extends WebSocketClientFactory  {
-  override def getSocket(url: String, objectName: String, callback: String => Unit): WebSocketClient = new WebSocketClient(url,objectName,callback,None,ConfigFactory.load())
+  override def getSocket(url: String, objectName: String, callback: String => Unit,config:Config): WebSocketClient = new WebSocketClient(url,objectName,callback,None,config)
 
-  override def getSocket(url: String, objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient]) =
-    new WebSocketClient(url,objectName,callback,loginClient,ConfigFactory.load())
+  override def getSocket(url: String, objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient],config:Config) =
+    new WebSocketClient(url,objectName,callback,loginClient,config)
 }
