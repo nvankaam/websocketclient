@@ -26,8 +26,12 @@ import com.typesafe.scalalogging.LazyLogging
   * Client that performs the polls for the web socket source function
   */
 class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient]) extends LazyLogging {
-  @transient implicit lazy val actorSystem: ActorSystem = HttpClient.actorSystem
-  @transient implicit lazy val materializer: ActorMaterializer = HttpClient.mat
+  @transient implicit lazy val actorSystem: ActorSystem = {
+    val name = s"WebSocketClient_${UUID.randomUUID().toString}"
+    logger.info(s"Creating actorsystem $name")
+    ActorSystem(name)
+  }
+  @transient implicit lazy val materializer: ActorMaterializer = ActorMaterializer()
 
 
   private var initMessages = 0
@@ -45,14 +49,14 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
 
 
   private val onClose:Future[Unit] = async {
-    closePromise.future.onComplete(t => {
+    closePromise.future.flatMap(_ => actorSystem.terminate()).onComplete(t => {
       if(t.isFailure) {
         logger.error("Closepromise produced an error: ",t.failed.get)
         if(!pollComplete.isCompleted) {
           pollComplete.failure(t.failed.get)
         }
       } else {
-        //logger.info("Actor system for web socket client terminated")
+        logger.info("Actor system for web socket client terminated")
         logger.info("Finishing poll complete because socket has closed")
         if(pollComplete != null && !pollComplete.isCompleted) {
           pollComplete.success(false)

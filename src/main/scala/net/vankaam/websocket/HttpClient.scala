@@ -27,16 +27,6 @@ import scala.concurrent.duration.Duration
 
 
 
-object HttpClient extends LazyLogging {
-  implicit val actorSystem: ActorSystem = {
-    val name = s"HttpClient${UUID.randomUUID().toString}"
-    logger.info(s"Creating actorsystem $name")
-    ActorSystem(name)
-  }
-  val mat: ActorMaterializer = ActorMaterializer()
-}
-
-
 
 /**
   * A simple http client
@@ -44,16 +34,19 @@ object HttpClient extends LazyLogging {
   */
 class HttpClient {
   private lazy val logger = LoggerFactory.getLogger(classOf[HttpClient])
+  @transient implicit lazy val actorSystem: ActorSystem = {
+    val name = s"HttpClient${UUID.randomUUID().toString}"
+    logger.info(s"Creating actorsystem $name")
+    ActorSystem(name)
+  }
 
-  @transient implicit lazy val actorSystem = HttpClient.actorSystem
-  @transient implicit lazy val mat: ActorMaterializer = HttpClient.mat
 
   /*
   TODO: Move this to some configuration
    */
   @transient lazy implicit val serialization: Serialization.type = native.Serialization
   @transient lazy implicit val formats: Formats = DefaultFormats ++ org.json4s.ext.JodaTimeSerializers.all
-
+  @transient lazy implicit val mat: ActorMaterializer = ActorMaterializer()
 
 
   /**
@@ -151,7 +144,7 @@ class HttpClient {
 
 
   def close(): Unit = {
-//    actorSystem.terminate()
+    actorSystem.terminate()
   }
 
 
