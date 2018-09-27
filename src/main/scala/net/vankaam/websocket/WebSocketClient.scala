@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration._
 import akka.actor.ActorSystem
+import com.typesafe.config.ConfigFactory
 
 import scala.collection._
 import com.typesafe.scalalogging.LazyLogging
@@ -26,10 +27,11 @@ import com.typesafe.scalalogging.LazyLogging
   * Client that performs the polls for the web socket source function
   */
 class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient]) extends LazyLogging {
+  @transient lazy val config = ConfigFactory.load()
   @transient implicit lazy val actorSystem: ActorSystem = {
     val name = s"WebSocketClient_${UUID.randomUUID().toString}"
     logger.info(s"Creating actorsystem $name")
-    ActorSystem(name)
+    ActorSystem(name,config)
   }
   @transient implicit lazy val materializer: ActorMaterializer = ActorMaterializer()
 
