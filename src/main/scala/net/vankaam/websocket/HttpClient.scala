@@ -11,7 +11,7 @@ import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport._
 import org.json4s.native.Serialization
@@ -34,7 +34,10 @@ import scala.concurrent.duration.Duration
   * Please call terminate when actorSystem should terminate
   */
 class HttpClient {
-  @transient lazy val config = ConfigFactory.load()
+  @transient lazy val config =
+   ConfigFactory.load()
+      .withValue("akka.jvm-shutdown-hooks",ConfigValueFactory.fromAnyRef(true))
+
   private lazy val logger = LoggerFactory.getLogger(classOf[HttpClient])
   @transient implicit lazy val actorSystem: ActorSystem = {
     val name = s"HttpClient${UUID.randomUUID().toString}"
