@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration._
 import akka.actor.ActorSystem
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import scala.collection._
 import com.typesafe.scalalogging.LazyLogging
@@ -26,10 +26,7 @@ import com.typesafe.scalalogging.LazyLogging
 /**
   * Client that performs the polls for the web socket source function
   */
-class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient]) extends LazyLogging {
-  @transient lazy val config =
-    ConfigFactory.load()
-      .withValue("akka.jvm-shutdown-hooks",ConfigValueFactory.fromAnyRef(true))
+class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient], val config:Config) extends LazyLogging {
 
   @transient implicit lazy val actorSystem: ActorSystem = {
     val name = s"WebSocketClient_${UUID.randomUUID().toString}"
@@ -276,8 +273,8 @@ trait WebSocketClientFactory extends Serializable {
 }
 
 object WebSocketClientFactory extends WebSocketClientFactory  {
-  override def getSocket(url: String, objectName: String, callback: String => Unit): WebSocketClient = new WebSocketClient(url,objectName,callback,None)
+  override def getSocket(url: String, objectName: String, callback: String => Unit): WebSocketClient = new WebSocketClient(url,objectName,callback,None,ConfigFactory.load())
 
   override def getSocket(url: String, objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient]) =
-    new WebSocketClient(url,objectName,callback,loginClient)
+    new WebSocketClient(url,objectName,callback,loginClient,ConfigFactory.load())
 }

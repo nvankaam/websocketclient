@@ -2,6 +2,7 @@ package net.vankaam.websocket
 
 import akka.actor.Status.Success
 import akka.stream.StreamTcpException
+import com.typesafe.config.ConfigFactory
 import org.scalatest.AsyncFlatSpec
 
 import scala.async.Async.{async, await}
@@ -13,7 +14,7 @@ case class Response(data:String)
 
 class HttpClientSpec extends AsyncFlatSpec {
   "HttpClient.post" should "Post data to an url and await the result" in async {
-    val client = new HttpClient()
+    val client = new HttpClient(ConfigFactory.load())
     val data = Data("dataname")
     val result = await(client.post[Data,Response]("http://httpbin.org/post",data)(60 seconds))
 
@@ -21,7 +22,7 @@ class HttpClientSpec extends AsyncFlatSpec {
   }
 
   it should "throw an exception if the request is invalid" in async {
-    val client = new HttpClient()
+    val client = new HttpClient(ConfigFactory.load())
     val data = Data("dataname")
     var error = false
 
