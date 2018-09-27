@@ -1,5 +1,7 @@
 package net.vankaam.websocket
 
+import java.util.UUID
+
 import akka.actor.ActorSystem
 import akka.http.javadsl.model.headers.HttpCredentials
 import akka.http.scaladsl.Http
@@ -25,7 +27,14 @@ import scala.concurrent.duration.Duration
 
 
 
-
+object HttpClient extends LazyLogging {
+  implicit val actorSystem: ActorSystem = {
+    val name = s"HttpClient${UUID.randomUUID().toString}"
+    logger.info(s"Creating actorsystem $name")
+    ActorSystem(name)
+  }
+  val mat: ActorMaterializer = ActorMaterializer()
+}
 
 
 
@@ -35,14 +44,16 @@ import scala.concurrent.duration.Duration
   */
 class HttpClient {
   private lazy val logger = LoggerFactory.getLogger(classOf[HttpClient])
-  @transient implicit lazy val actorSystem = ActorSystem("HttpClient")
+
+  @transient implicit lazy val actorSystem = HttpClient.actorSystem
+  @transient implicit lazy val mat: ActorMaterializer = HttpClient.mat
 
   /*
   TODO: Move this to some configuration
    */
-  implicit val serialization: Serialization.type = native.Serialization
-  implicit val formats: Formats = DefaultFormats ++ org.json4s.ext.JodaTimeSerializers.all
-  implicit val mat: ActorMaterializer = ActorMaterializer()
+  @transient lazy implicit val serialization: Serialization.type = native.Serialization
+  @transient lazy implicit val formats: Formats = DefaultFormats ++ org.json4s.ext.JodaTimeSerializers.all
+
 
 
   /**
@@ -140,7 +151,7 @@ class HttpClient {
 
 
   def close(): Unit = {
-    actorSystem.terminate()
+//    actorSystem.terminate()
   }
 
 

@@ -7,9 +7,10 @@ import akka.http.scaladsl.model._
 import spray.json._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection._
@@ -19,6 +20,7 @@ import scala.async.Async.{async, await}
   * Simple client that performs a post to a url and obtains the cookie header
   */
 class LoginCookieClient(uri:String, content:LoginRequest) extends LazyLogging with Serializable {
+
 
   def GetLoginCookie(implicit system:ActorSystem): Future[HttpCookie] = async {
       logger.debug("Requesting cookie")

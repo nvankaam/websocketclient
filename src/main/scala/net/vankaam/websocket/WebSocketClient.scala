@@ -1,5 +1,7 @@
 package net.vankaam.websocket
 
+import java.util.UUID
+
 import akka.Done
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
@@ -9,9 +11,10 @@ import akka.stream.{ActorMaterializer, OverflowStrategy}
 
 import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{Await, Future, Promise}
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.concurrent.duration._
 import akka.actor.ActorSystem
 
 import scala.collection._
@@ -19,14 +22,13 @@ import com.typesafe.scalalogging.LazyLogging
 
 
 
-
-
 /**
   * Client that performs the polls for the web socket source function
   */
 class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient]) extends LazyLogging {
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  @transient implicit lazy val actorSystem = ActorSystem("WebSocketClient")
+  @transient implicit lazy val actorSystem: ActorSystem = HttpClient.actorSystem
+  @transient implicit lazy val materializer: ActorMaterializer = HttpClient.mat
+
 
   private var initMessages = 0
   private val initializePromise = Promise[Boolean]()
@@ -43,16 +45,16 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
 
 
   private val onClose:Future[Unit] = async {
-    closePromise.future.flatMap(_ => actorSystem.terminate()).onComplete(t => {
+    closePromise.future.onComplete(t => {
       if(t.isFailure) {
         logger.error("Closepromise produced an error: ",t.failed.get)
         if(!pollComplete.isCompleted) {
           pollComplete.failure(t.failed.get)
         }
       } else {
-        logger.info("Actor system for web socket client terminated")
+        //logger.info("Actor system for web socket client terminated")
         logger.info("Finishing poll complete because socket has closed")
-        if(!pollComplete.isCompleted) {
+        if(pollComplete != null && !pollComplete.isCompleted) {
           pollComplete.success(false)
         }
       }
@@ -215,12 +217,14 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
       await(orClosed(initializePromise.future))
       logger.info(s"Socket opened and ready to receive data")
     }
-    //Return false if initialize was denied
-    //In all other cases return true
-    if(initializePromise.future.isCompleted) {
-     initializePromise.future.value.get.getOrElse(true)
-    } else {
-      true
+
+    //Wait some time for the initialization promise, or just return false becasue something probably went wrong
+    try {
+      Await.result(initializePromise.future,5 seconds)
+    } catch {
+      case e:Exception =>
+        logger.warn("Timeout on intialization promise", e)
+        false
     }
   }
 
