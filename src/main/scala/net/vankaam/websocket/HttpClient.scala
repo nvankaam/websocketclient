@@ -33,13 +33,13 @@ import scala.concurrent.duration.Duration
   * A simple http client
   * Please call terminate when actorSystem should terminate
   */
-class HttpClient(val config:Config) {
+class HttpClient(val config:Config, classLoader:ClassLoader) {
 
   private lazy val logger = LoggerFactory.getLogger(classOf[HttpClient])
   @transient implicit lazy val actorSystem: ActorSystem = {
     val name = s"HttpClient${UUID.randomUUID().toString}"
     logger.info(s"Creating actorsystem $name")
-    ActorSystem(name,config)
+    ActorSystem(name,config,classLoader)
   }
 
 

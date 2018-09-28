@@ -26,12 +26,12 @@ import com.typesafe.scalalogging.LazyLogging
 /**
   * Client that performs the polls for the web socket source function
   */
-class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient], val config:Config) extends LazyLogging {
+class WebSocketClient(url: String,objectName: String, callback: String => Unit,loginClient: Option[LoginCookieClient], val config:Config,val classLoader:ClassLoader) extends LazyLogging {
 
   @transient implicit lazy val actorSystem: ActorSystem = {
     val name = s"WebSocketClient_${UUID.randomUUID().toString}"
     logger.info(s"Creating actorsystem $name")
-    ActorSystem(name,config)
+    ActorSystem(name,config,classLoader)
   }
   @transient implicit lazy val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -259,7 +259,7 @@ trait WebSocketClientFactory extends Serializable {
     * @param callback callback method for data received from the web socket
     * @return
     */
-  def getSocket(url: String,objectName: String, callback: String => Unit,config:Config): WebSocketClient
+  def getSocket(url: String,objectName: String, callback: String => Unit,config:Config,classLoader:ClassLoader): WebSocketClient
 
   /**
     * Construct a new web socket with a header factory
@@ -269,12 +269,12 @@ trait WebSocketClientFactory extends Serializable {
     * @param loginClient factory obtaining the headers asynchronously
     * @return
     */
-  def getSocket(url: String,objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient],config:Config): WebSocketClient
+  def getSocket(url: String,objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient],config:Config,classLoader: ClassLoader): WebSocketClient
 }
 
 object WebSocketClientFactory extends WebSocketClientFactory  {
-  override def getSocket(url: String, objectName: String, callback: String => Unit,config:Config): WebSocketClient = new WebSocketClient(url,objectName,callback,None,config)
+  override def getSocket(url: String, objectName: String, callback: String => Unit,config:Config,classLoader:ClassLoader): WebSocketClient = new WebSocketClient(url,objectName,callback,None,config,classLoader)
 
-  override def getSocket(url: String, objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient],config:Config) =
-    new WebSocketClient(url,objectName,callback,loginClient,config)
+  override def getSocket(url: String, objectName: String, callback: String => Unit, loginClient: Option[LoginCookieClient],config:Config,classLoader: ClassLoader) =
+    new WebSocketClient(url,objectName,callback,loginClient,config,classLoader)
 }

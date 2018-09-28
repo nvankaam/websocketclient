@@ -44,7 +44,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
-    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load())
+    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
 
     await(blocking{socket.open()})
     await(blocking{socket.poll(0,2)})
@@ -60,7 +60,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
-    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load())
+    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
 
     await(blocking {socket.open()})
     await(blocking{socket.poll(0,20)})
@@ -76,7 +76,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
-    val socket = new WebSocketClient(wssUri,"idonotexist",buffer+=_,Some(loginClient),ConfigFactory.load())
+    val socket = new WebSocketClient(wssUri,"idonotexist",buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
 
     val r = await(blocking {socket.open()}.map(Right(_)).recover {case e => Left(e)})
 
@@ -88,7 +88,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
-    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load())
+    val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
 
 
     val result = await(socket.open())
