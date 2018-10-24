@@ -52,7 +52,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 
 
   /**
-    * Post an http request to the give nurl
+    * Post an http request to the given url
     *
     * @param uri  uri to post to
     * @param data the data to post
