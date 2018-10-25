@@ -63,6 +63,7 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
         if(pollComplete != null && !pollComplete.isCompleted) {
           pollComplete.success(false)
         }
+
       }
     })
 
@@ -162,7 +163,10 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
   def open(): Future[Boolean] = async {
     //Obtain headers
     val headers = loginClient match {
-      case Some(f) => await(f.GetCookieHeader)
+      case Some(f) => await(f.GetCookieHeader) match {
+        case Right(v) => v
+        case Left(e) => throw e
+      }
       case None => immutable.Seq.empty[HttpHeader]
     }
 

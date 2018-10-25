@@ -9,6 +9,7 @@ import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection._
 import scala.concurrent.blocking
+import scala.concurrent.duration._
 
 
 class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with LazyLogging {
@@ -22,6 +23,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
   private val username = config.getString("test.websocketclientspec.username")
   private val password = config.getString("test.websocketclientspec.password")
   private val wssData = config.getString("test.websocketclientspec.wssData")
+  private val cookieTimeout = 5 seconds
 
   /*
   "WebSocketClient" should "Retrieve and push data from a websocket" taggedAs Slow in async {
@@ -41,39 +43,39 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
 
   "WebSocketClient with Cookie" should "log in and use the cookie on the websocket" taggedAs Slow in async {
     val loginRequest = LoginRequest(username,password)
-    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+    val loginClient = new LoginCookieClient(wssLoginUri,cookieTimeout,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
     val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
 
     await(blocking{socket.open()})
-    await(blocking{socket.poll(0,2)})
-    await(blocking{socket.poll(2,2)})
+    await(blocking{socket.poll(0,1)})
+    await(blocking{socket.poll(1,1)})
 
     logger.info(s"Closing socket")
     socket.close()
-    assert(buffer.size == 4)
+    assert(buffer.size == 2)
   }
 
   it should "close the connection if all data has been recieved"  taggedAs Slow in async {
     val loginRequest = LoginRequest(username,password)
-    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+    val loginClient = new LoginCookieClient(wssLoginUri,cookieTimeout,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
     val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
 
     await(blocking {socket.open()})
-    await(blocking{socket.poll(0,20)})
-    await(blocking{socket.poll(20,200)})
+    await(blocking{socket.poll(0,1)})
+    await(blocking{socket.poll(1,200)})
 
     logger.info(s"Closing socket")
     socket.close()
-    assert(buffer.size >= 78)
+    assert(buffer.size >= 2)
   }
 
   it should "throw an exception if an unknown entity has been recieved" taggedAs Slow in async {
     val loginRequest = LoginRequest(username,password)
-    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+    val loginClient = new LoginCookieClient(wssLoginUri,cookieTimeout,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
     val socket = new WebSocketClient(wssUri,"idonotexist",buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
@@ -83,9 +85,10 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     assert(r.isLeft)
   }
 
+/*
   "WebSocketClient.open" should "return none when the server denies the request" in async {
     val loginRequest = LoginRequest(username,password)
-    val loginClient = new LoginCookieClient(wssLoginUri,loginRequest)
+    val loginClient = new LoginCookieClient(wssLoginUri,cookieTimeout,loginRequest)
 
     val buffer = new mutable.ListBuffer[String]()
     val socket = new WebSocketClient(wssUri,wssData,buffer+=_,Some(loginClient),ConfigFactory.load(),this.getClass.getClassLoader)
@@ -94,7 +97,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     val result = await(socket.open())
     assert(!result)
   }
-
+*/
 
   /** TODO: This test assumes an error during the poll */
 /*
