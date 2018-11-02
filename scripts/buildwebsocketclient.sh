@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 cd ../
-#mvn package
+mvn package
 
 
 
 
 #Hacky copy the jar to the assemblies of linkedcache importer project
-TARGETS=("../linkedcacheimporter/vertexapi/lib/")
+TARGETS=("../linkedcacheimporter/vertexapi/lib/" "../linkedcacheimporter/vertexsource/lib/"  "../linkedcacheimporter/linkedcacheimport/lib/")
 
 for target in "${TARGETS[@]}"
 do 

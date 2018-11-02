@@ -70,12 +70,12 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
     */
   def post[TData <: AnyRef, TResult: Manifest](uri: String, data: TData)(timeout:Duration): Future[Either[Exception, TResult]] = {
     val headers = immutable.Seq.empty[HttpHeader]
-    postWithHeaders[TData, TResult](uri)(headers)(data)(timeout)
+    postWithHeaders[TData, TResult](uri)(headers)(timeout)(data)
   }
 
   def postBasicAuth[TData <: AnyRef, TResult: Manifest](uri: String, data: TData, username: String, password: String)(timeout:Duration): Future[Either[Exception, TResult]] = {
     val auth = headers.Authorization(headers.BasicHttpCredentials(username, password))
-    postWithHeaders[TData, TResult](uri)(List(auth))(data)(timeout)
+    postWithHeaders[TData, TResult](uri)(List(auth))(timeout)(data)
   }
 
   /**
@@ -104,7 +104,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 
   def postRawXmlWithHeaders[TResult:Manifest](uri:String)(headers: immutable.Seq[HttpHeader])(data:String)(timeout:Duration): Future[Either[Exception, TResult]] = {
     val entity = HttpEntity(ContentTypes.`text/xml(UTF-8)`,data)
-    postEntityWithHeaders[TResult](uri)(headers)(entity)(timeout)
+    httpWithHeaders[TResult](uri)(headers)(timeout)(Some(entity))
   }
 
 
@@ -113,14 +113,20 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 
 
 
-  def postEntityWithHeaders[TResult:Manifest](uri:String)(headers: immutable.Seq[HttpHeader])(data:HttpEntity.Strict)(timeout:Duration): Future[Either[Exception, TResult]] = async {
+
+  def httpWithHeaders[TResult:Manifest](uri:String)(headers: immutable.Seq[HttpHeader])(timeout:Duration)(data:Option[HttpEntity.Strict] = None): Future[Either[Exception, TResult]] = async {
   //Create connectionpoolsettings with timeout
   val orig = ConnectionPoolSettings(actorSystem.settings.config).copy(timeout.getMillis.toInt)
   //Change the timeout on the clientconnection as well. Note that this is a different timeout than above
   val clientSettings = orig.connectionSettings.withIdleTimeout(timeout)
   val settings = orig.copy(connectionSettings = clientSettings)
 
-  val request = HttpRequest(HttpMethods.POST, uri, headers, data)
+    val request = data match {
+      case None => HttpRequest(HttpMethods.GET,uri,headers)
+      case Some(data) => HttpRequest(HttpMethods.POST, uri, headers, data)
+    }
+
+
   val webRequestResult = await(Http().singleRequest(request,settings=settings).map(o => Right(o)).recover { case e: Exception => Left(e) })
 
 
@@ -150,7 +156,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 }
 
 
-  def postWithHeaders[TData <: AnyRef, TResult: Manifest](uri: String)(headers: immutable.Seq[HttpHeader])(data: TData)(timeout:Duration): Future[Either[Exception, TResult]] = async {
+  def postWithHeaders[TData <: AnyRef, TResult: Manifest](uri: String)(headers: immutable.Seq[HttpHeader])(timeout:Duration)(data: TData): Future[Either[Exception, TResult]] = async {
     if (logger.isTraceEnabled()) {
       logger.trace(s"Marshalling entity for uri $uri")
     }
@@ -168,7 +174,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
         }
 
 
-        await(postEntityWithHeaders(uri)(headers)(entity)(timeout))
+        await(httpWithHeaders(uri)(headers)(timeout)(Some(entity)))
     }
   }
 

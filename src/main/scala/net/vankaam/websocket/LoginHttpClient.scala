@@ -2,6 +2,7 @@ package net.vankaam.websocket
 
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader}
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{DateTime, Duration}
 
 import scala.concurrent.Future
@@ -25,11 +26,28 @@ case class LoginHttpClientConfig(
                                 loginPassword:String
                                 )
 
-class LoginHttpClient(akkaConfig:Config,config:LoginHttpClientConfig,classLoader:ClassLoader) extends HttpClient(akkaConfig, classLoader) {
+class LoginHttpClient(akkaConfig:Config,config:LoginHttpClientConfig,classLoader:ClassLoader) extends HttpClient(akkaConfig, classLoader) with LazyLogging {
 
   @transient @volatile private var loginHeader:Option[LoginHeader] = None
 
+  validateConfiguration()
 
+  private def validateConfiguration():Unit = {
+    val errorMessage = config match {
+      case LoginHttpClientConfig(_,_,loginUri,_,_) if loginUri == null => Some("loginUri was null")
+      case LoginHttpClientConfig(_,_,_,loginUser,_) if loginUser == null => Some("loginUser was null")
+      case LoginHttpClientConfig(_,_,_,_,loginPassword) if loginPassword == null => Some("loginPassword was null")
+      case _ => None
+    }
+
+    errorMessage match {
+      case Some(m) =>
+        val error = new IllegalArgumentException(s"LoginClientConfiguration was invalid: $m. Configuration: \'$config\'")
+        logger.error("LoginClientConfiguration was invalid", error)
+        throw error
+      case None =>
+    }
+  }
 
   /**
     * Retrieves the current cookie header
@@ -53,11 +71,19 @@ class LoginHttpClient(akkaConfig:Config,config:LoginHttpClientConfig,classLoader
     postEntityWithLogin(uri)(entity)(timeout)
   }
 
+  def getWithLogin[TResult:Manifest](uri:String)(timeout:Duration): Future[Either[Exception,TResult]] = async {
+    val headers = await(getCookie().header)
+    headers match {
+      case Left(e) => Left(e)
+      case Right(h) => await(httpWithHeaders[TResult](uri)(h)(timeout)(None))
+    }
+  }
+
   def postEntityWithLogin[TResult: Manifest](uri: String)(data: HttpEntity.Strict)(timeout: Duration): Future[Either[Exception, TResult]] = async {
     val headers = await(getCookie().header)
     headers match {
       case Left(e) => Left(e)
-      case Right(h) => await(postEntityWithHeaders(uri)(h)(data)(timeout))
+      case Right(h) => await(httpWithHeaders(uri)(h)(timeout)(Some(data)))
     }
   }
 
