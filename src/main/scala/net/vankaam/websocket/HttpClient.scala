@@ -143,7 +143,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
         }
 
         val e =result.status.intValue() match {
-          case 204 => Try(Unit.asInstanceOf[TResult]) match {
+          case 204 => Try(().asInstanceOf[TResult]) match {
             case scala.util.Success(value) => Right(value)
             case scala.util.Failure(f) => Left(new Exception(f))
           }
