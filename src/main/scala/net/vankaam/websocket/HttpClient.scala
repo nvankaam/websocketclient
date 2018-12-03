@@ -19,12 +19,14 @@ import org.json4s.{DefaultFormats, Formats, native}
 import org.slf4j.{LoggerFactory, MDC}
 import resource.managed
 
+
 import scala.collection._
 import scala.concurrent.{Await, Future}
 import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{duration => scalaDur}
+import scala.reflect._
 import scala.util.Try
 
 
@@ -115,7 +117,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 
 
 
-  def httpWithHeaders[TResult:Manifest](uri:String)(headers: immutable.Seq[HttpHeader])(timeout:Duration)(data:Option[HttpEntity.Strict] = None): Future[Either[Exception, TResult]] = async {
+  def httpWithHeaders[TResult:ClassTag:Manifest](uri:String)(headers: immutable.Seq[HttpHeader])(timeout:Duration)(data:Option[HttpEntity.Strict] = None): Future[Either[Exception, TResult]] = async {
   //Create connectionpoolsettings with timeout
   val orig = ConnectionPoolSettings(actorSystem.settings.config).copy(timeout.getMillis.toInt)
   //Change the timeout on the clientconnection as well. Note that this is a different timeout than above
@@ -145,11 +147,11 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
         val e =result.status.intValue() match {
           case 204 => Try(().asInstanceOf[TResult]) match {
             case scala.util.Success(value) => Right(value)
-            case scala.util.Failure(f) => Left(new Exception(f))
+            case scala.util.Failure(f) => Left(new Exception(s"Error while converting result with code ${result.status.intValue()} into a response of type ${classTag[TResult].runtimeClass.getName}.", f))
           }
           case _ => await(Unmarshal(result.entity).to[TResult]
         .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
-        .recover { case e: Exception => Left(new Exception(e)) })
+        .recover { case e: Exception => Left(new Exception(s"Error while un-marshalling response with code ${result.status.intValue()} into ${classTag[TResult].runtimeClass.getName}.\nResponse content was: ${result.entity.toString}", e)) })
         }
 
 
@@ -162,7 +164,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
         e
       } else {
         val d = await(debugEntity(result.entity))
-        Left(new IllegalStateException(s"Http request responsed with ${result.status.intValue()}: ${result.status.value}. Content was: \n$d\n"))
+        Left(new IllegalStateException(s"Http request responded with ${result.status.intValue()}: ${result.status.value}. Content was: \n$d\n"))
       }
   }
 

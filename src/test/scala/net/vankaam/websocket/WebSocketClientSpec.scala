@@ -6,7 +6,6 @@ import org.scalatest.{AsyncFlatSpec, BeforeAndAfterEach}
 import org.scalatest.tagobjects.Slow
 
 import scala.async.Async.{async, await}
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection._
 import scala.concurrent.blocking
 import scala.concurrent.duration._
