@@ -91,7 +91,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 
     val httpEntity = await(Marshal(data).to[HttpEntity]
         .map (Right(_))
-        .recover { case e: Exception => Left(e) })
+        .recover { case e: Exception => Left(new Exception(e)) })
 
 
     httpEntity match {
@@ -128,7 +128,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 
     logger.trace(s"Sending http request to ${request.uri}. ($request)")
 
-  val webRequestResult = await(Http().singleRequest(request,settings=settings).map(o => Right(o)).recover { case e: Exception => Left(e) })
+  val webRequestResult = await(Http().singleRequest(request,settings=settings).map(o => Right(o)).recover { case e: Exception => Left(new Exception(e)) })
 
 
   //TODO: Restruture this
@@ -142,7 +142,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
         }
         val e = await(Unmarshal(result.entity).to[TResult]
           .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
-          .recover { case e: Exception => Left(e) }
+          .recover { case e: Exception => Left(new Exception(e)) }
         )
         if (logger.isTraceEnabled()) {
           for (_ <- managed(MDC.putCloseable("responsedata", e.toString))) {
