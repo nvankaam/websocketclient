@@ -19,8 +19,8 @@
     <maven.compiler.source>1.6</maven.compiler.source>
     <maven.compiler.target>1.6</maven.compiler.target>
     <encoding>UTF-8</encoding>
-    <scala.version>2.11.12</scala.version>
-    <scala.compat.version>2.11</scala.compat.version>
+    <scala.version>2.12.7</scala.version>
+    <scala.compat.version>2.12</scala.compat.version>
   </properties>
 
   <dependencies>
@@ -31,13 +31,13 @@
     </dependency>
       <dependency>
           <groupId>org.scala-lang.modules</groupId>
-          <artifactId>scala-async_2.11</artifactId>
+          <artifactId>scala-async_2.12</artifactId>
           <version>0.9.7</version>
       </dependency>
       <!-- Logging -->
       <dependency>
           <groupId>com.typesafe.scala-logging</groupId>
-          <artifactId>scala-logging_2.11</artifactId>
+          <artifactId>scala-logging_2.12</artifactId>
           <version>3.5.0</version>
       </dependency>
       <!-- https://mvnrepository.com/artifact/ch.qos.logback/logback-classic -->
@@ -51,54 +51,54 @@
     <!-- akka http json -->
       <dependency>
           <groupId>de.heikoseeberger</groupId>
-          <artifactId>akka-http-json4s_2.11</artifactId>
+          <artifactId>akka-http-json4s_2.12</artifactId>
           <version>1.21.0</version>
       </dependency>
       <dependency>
           <groupId>org.json4s</groupId>
-          <artifactId>json4s-native_2.11</artifactId>
+          <artifactId>json4s-native_2.12</artifactId>
           <version>3.6.0-M2</version>
       </dependency>
       <dependency>
           <groupId>org.json4s</groupId>
-          <artifactId>json4s-ext_2.11</artifactId>
+          <artifactId>json4s-ext_2.12</artifactId>
           <version>3.6.0-M2</version>
       </dependency>
       <!-- Scala ARM -->
       <dependency>
           <groupId>com.jsuereth</groupId>
-          <artifactId>scala-arm_2.11</artifactId>
+          <artifactId>scala-arm_2.12</artifactId>
           <version>2.0</version>
       </dependency>
 
       <!-- Akka -->
     <dependency>
       <groupId>com.typesafe.akka</groupId>
-      <artifactId>akka-actor_2.11</artifactId>
+      <artifactId>akka-actor_2.12</artifactId>
       <version>2.5.17</version>
     </dependency>
     <dependency>
       <groupId>com.typesafe.akka</groupId>
-      <artifactId>akka-testkit_2.11</artifactId>
+      <artifactId>akka-testkit_2.12</artifactId>
       <version>2.5.17</version>
       <scope>test</scope>
     </dependency>
 
       <dependency>
           <groupId>com.typesafe.akka</groupId>
-          <artifactId>akka-remote_2.11</artifactId>
+          <artifactId>akka-remote_2.12</artifactId>
           <version>2.5.17</version>
       </dependency>
 
       <!-- Akka Streams -->
   <dependency>
       <groupId>com.typesafe.akka</groupId>
-      <artifactId>akka-stream_2.11</artifactId>
+      <artifactId>akka-stream_2.12</artifactId>
       <version>2.5.17</version>
   </dependency>
   <dependency>
       <groupId>com.typesafe.akka</groupId>
-      <artifactId>akka-stream-testkit_2.11</artifactId>
+      <artifactId>akka-stream-testkit_2.12</artifactId>
       <version>2.5.17</version>
       <scope>test</scope>
   </dependency>
@@ -107,18 +107,18 @@
     <!-- Akka Http -->
     <dependency>
       <groupId>com.typesafe.akka</groupId>
-      <artifactId>akka-http_2.11</artifactId>
+      <artifactId>akka-http_2.12</artifactId>
       <version>10.1.5</version>
     </dependency>
     <dependency>
       <groupId>com.typesafe.akka</groupId>
-      <artifactId>akka-http-testkit_2.11</artifactId>
+      <artifactId>akka-http-testkit_2.12</artifactId>
       <version>10.1.5</version>
       <scope>test</scope>
     </dependency>
       <dependency>
           <groupId>com.typesafe.akka</groupId>
-          <artifactId>akka-http-spray-json_2.11</artifactId>
+          <artifactId>akka-http-spray-json_2.12</artifactId>
           <version>10.1.5</version>
       </dependency>
 
