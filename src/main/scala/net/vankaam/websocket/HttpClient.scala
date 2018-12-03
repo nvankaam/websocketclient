@@ -25,6 +25,7 @@ import scala.async.Async.{async, await}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{duration => scalaDur}
+import scala.util.Try
 
 
 
@@ -140,10 +141,19 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
           val d = await(debugEntity(result.entity))
           logger.trace(s"Unmarshalling entity on $uri. Response was \n$d\n")
         }
-        val e = await(Unmarshal(result.entity).to[TResult]
-          .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
-          .recover { case e: Exception => Left(new Exception(e)) }
-        )
+
+        val e =result.status.intValue() match {
+          case 204 => Try(Unit.asInstanceOf[TResult]) match {
+            case scala.util.Success(value) => Right(value)
+            case scala.util.Failure(f) => Left(new Exception(f))
+          }
+          case _ => await(Unmarshal(result.entity).to[TResult]
+        .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
+        .recover { case e: Exception => Left(new Exception(e)) })
+        }
+
+
+
         if (logger.isTraceEnabled()) {
           for (_ <- managed(MDC.putCloseable("responsedata", e.toString))) {
             logger.trace(s"Received data from uri $uri")
