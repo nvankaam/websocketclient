@@ -38,10 +38,10 @@ class LoginCookieClient(uri:String, loginTimeout:Duration,content:LoginRequest) 
       val response = await(Http().singleRequest(HttpRequest(HttpMethods.POST, uri, entity = entity),settings=settings))
 
       val cookieHeaders = response.headers.collect { case `Set-Cookie`(x) => x }
-      if (response.status.intValue() != 200) {
+      if (!response.status.isSuccess()) {
         Left(new IllegalStateException(response.entity.toString))
       } else if (cookieHeaders.size > 1) {
-        Left(new IllegalStateException(s"Multiple cookie headers recieved"))
+        Left(new IllegalStateException(s"Multiple cookie headers received"))
       } else {
         logger.debug("Got cookie")
         Right(cookieHeaders.head)

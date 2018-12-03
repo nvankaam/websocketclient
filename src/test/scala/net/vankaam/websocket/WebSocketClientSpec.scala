@@ -57,7 +57,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     assert(buffer.size == 2)
   }
 
-  it should "close the connection if all data has been recieved"  taggedAs Slow in async {
+  it should "close the connection if all data has been received"  taggedAs Slow in async {
     val loginRequest = LoginRequest(username,password)
     val loginClient = new LoginCookieClient(wssLoginUri,cookieTimeout,loginRequest)
 
@@ -73,7 +73,7 @@ class WebSocketClientSpec extends AsyncFlatSpec with BeforeAndAfterEach with Laz
     assert(buffer.size >= 2)
   }
 
-  it should "throw an exception if an unknown entity has been recieved" taggedAs Slow in async {
+  it should "throw an exception if an unknown entity has been received" taggedAs Slow in async {
     val loginRequest = LoginRequest(username,password)
     val loginClient = new LoginCookieClient(wssLoginUri,cookieTimeout,loginRequest)
 

@@ -65,7 +65,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
     * @param data the data to post
     * @param timeout Timeout for the post
     * @tparam TData   type of the data to post
-    * @tparam TResult type of the result to recieve
+    * @tparam TResult type of the result to receive
     * @return
     */
   def post[TData <: AnyRef, TResult: Manifest](uri: String, data: TData)(timeout:Duration): Future[Either[Exception, TResult]] = {
@@ -126,6 +126,7 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
       case Some(data) => HttpRequest(HttpMethods.POST, uri, headers, data)
     }
 
+    logger.trace(s"Sending http request to ${request.uri}. ($request)")
 
   val webRequestResult = await(Http().singleRequest(request,settings=settings).map(o => Right(o)).recover { case e: Exception => Left(e) })
 
@@ -134,9 +135,10 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
   webRequestResult match {
     case Left(e) => Left(e)
     case Right(result) =>
-      if (result.status.intValue() == 200) {
+      if (result.status.isSuccess()) {
         if (logger.isTraceEnabled()) {
-          logger.trace(s"Unmarshalling entity on $uri")
+          val d = await(debugEntity(result.entity))
+          logger.trace(s"Unmarshalling entity on $uri. Response was \n$d\n")
         }
         val e = await(Unmarshal(result.entity).to[TResult]
           .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
@@ -144,16 +146,23 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
         )
         if (logger.isTraceEnabled()) {
           for (_ <- managed(MDC.putCloseable("responsedata", e.toString))) {
-            logger.trace(s"Recieved data from uri $uri")
+            logger.trace(s"Received data from uri $uri")
           }
         }
         e
       } else {
-        Left(new IllegalStateException(s"Http request responsed with ${result.status.intValue()}: ${result.status.value}"))
+        val d = await(debugEntity(result.entity))
+        Left(new IllegalStateException(s"Http request responsed with ${result.status.intValue()}: ${result.status.value}. Content was: \n$d\n"))
       }
   }
 
 }
+
+  def debugEntity(entity:ResponseEntity):Future[String] = async {
+    val duration = Duration.millis(1000)
+    val strict = await(entity.toStrict(duration))
+    strict.getData().utf8String
+  }
 
 
   def postWithHeaders[TData <: AnyRef, TResult: Manifest](uri: String)(headers: immutable.Seq[HttpHeader])(timeout:Duration)(data: TData): Future[Either[Exception, TResult]] = async {
