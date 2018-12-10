@@ -139,8 +139,9 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
     case Left(e) => Left(e)
     case Right(result) =>
       if (result.status.isSuccess()) {
+        val entity = await(toStrict(result.entity))
         if (logger.isTraceEnabled()) {
-          val d = await(debugEntity(result.entity))
+          val d = debugEntity(entity)
           logger.trace(s"Unmarshalling entity on $uri. Response was \n$d\n")
         }
 
@@ -149,9 +150,13 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
             case scala.util.Success(value) => Right(value)
             case scala.util.Failure(f) => Left(new Exception(s"Error while converting result with code ${result.status.intValue()} into a response of type ${classTag[TResult].runtimeClass.getName}.", f))
           }
-          case _ => await(Unmarshal(result.entity).to[TResult]
+          case _ => await(Unmarshal(entity).to[TResult]
         .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
-        .recover { case e: Exception => Left(new Exception(s"Error while un-marshalling response with code ${result.status.intValue()} into ${classTag[TResult].runtimeClass.getName}.\nResponse content was: ${result.entity.toString}", e)) })
+        .recover { case e: Exception => {
+          Try(().asInstanceOf[TResult]) match {
+            case scala.util.Success(value) => Right(value)
+            case scala.util.Failure(f) => Left(new Exception(s"Error while un-marshalling response with code ${result.status.intValue()} into ${classTag[TResult].runtimeClass.getName}.\nResponse content was: ${debugEntity(entity)}", e))
+        } }})
         }
 
 
@@ -163,17 +168,20 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
         }
         e
       } else {
-        val d = await(debugEntity(result.entity))
+        val d = debugEntity(await(toStrict(result.entity)))
         Left(new IllegalStateException(s"Http request responded with ${result.status.intValue()}: ${result.status.value}. Content was: \n$d\n"))
       }
   }
 
 }
 
-  def debugEntity(entity:ResponseEntity):Future[String] = async {
+  def toStrict(entity:ResponseEntity):Future[HttpEntity.Strict] = async {
     val duration = Duration.millis(1000)
-    val strict = await(entity.toStrict(duration))
-    strict.getData().utf8String
+    await(entity.toStrict(duration))
+  }
+
+  def debugEntity(entity:HttpEntity.Strict):String = {
+    entity.getData().utf8String
   }
 
 
