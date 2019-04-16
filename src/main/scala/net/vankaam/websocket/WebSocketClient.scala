@@ -21,6 +21,8 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import scala.collection._
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.util.{Failure, Success}
+
 
 
 /**
@@ -184,26 +186,28 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
 
     //When done, finish the close promise
     //If an error occured, the promise might already be completed at this point
-    s.onSuccess {case b => {
-      logger.info("Websocket stream has completed.")
-      if(!closePromise.isCompleted) {
-        closePromise.success()
-      }
-    }}
-    s.onFailure {
-      case e:PeerClosedConnectionException =>
-        logger.warn(s"Received closed connection exception: ",e)
+    s.onComplete {
+      case Success(s) => {
+        logger.info(s"Websocket stream has completed: $s.")
         if(!closePromise.isCompleted) {
           closePromise.success()
         }
-      case t:Throwable=> {
-      logger.error(s"Error in stream: ${t.getMessage}",t)
-      if(!closePromise.isCompleted) {
-        closePromise.failure(t)
       }
-    }}
-
-
+      case Failure(exception) => {
+        exception match {
+          case e:PeerClosedConnectionException =>
+            logger.warn(s"Received closed connection exception: ",e)
+            if(!closePromise.isCompleted) {
+              closePromise.success()
+            }
+          case t:Throwable=> {
+            logger.error(s"Error in stream: ${t.getMessage}",t)
+            if(!closePromise.isCompleted) {
+              closePromise.failure(t)
+            }
+          }}
+      }
+    }
 
     val connected = upgradeResponse.map { upgrade =>
       if (upgrade.response.status != StatusCodes.SwitchingProtocols) {
@@ -222,6 +226,11 @@ class WebSocketClient(url: String,objectName: String, callback: String => Unit,l
       throw new IllegalStateException("Error while connecting. Closepromise completed")
     } else {
       logger.info("Connected to socket. Requesting subject")
+
+      queue.watchCompletion().onComplete(f => {
+        logger.error(s"Queue completed with: $f")
+      })
+
       //Initialize the server with the object
       await(orClosed(queue.offer(TextMessage(objectName))))
       await(orClosed(initializePromise.future))

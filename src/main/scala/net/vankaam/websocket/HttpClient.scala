@@ -82,6 +82,16 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
   }
 
   /**
+    * Returns true if the generic type is unit
+    * @param tag
+    * @tparam T
+    * @return
+    */
+  def isUnit[T](implicit tag:ClassTag[T]): Boolean =
+    tag == ClassTag(classOf[Unit])
+
+
+  /**
     * Marshals the entity.
     *
     * @param data
@@ -131,47 +141,43 @@ class HttpClient(val config:Config, classLoader:ClassLoader) {
 
     logger.trace(s"Sending http request to ${request.uri}. ($request)")
 
-  val webRequestResult = await(Http().singleRequest(request,settings=settings).map(o => Right(o)).recover { case e: Exception => Left(new Exception(e)) })
+    val webRequestResult = await(Http().singleRequest(request,settings=settings).map(o => Right(o)).recover { case e: Exception => Left(new Exception(e)) })
 
 
-  //TODO: Restruture this
-  webRequestResult match {
-    case Left(e) => Left(e)
-    case Right(result) =>
-      if (result.status.isSuccess()) {
-        val entity = await(toStrict(result.entity))
-        if (logger.isTraceEnabled()) {
-          val d = debugEntity(entity)
-          logger.trace(s"Unmarshalling entity on $uri. Response was \n$d\n")
-        }
 
-        val e =result.status.intValue() match {
-          case 204 => Try(().asInstanceOf[TResult]) match {
-            case scala.util.Success(value) => Right(value)
-            case scala.util.Failure(f) => Left(new Exception(s"Error while converting result with code ${result.status.intValue()} into a response of type ${classTag[TResult].runtimeClass.getName}.", f))
+    //TODO: Restruture this
+    webRequestResult match {
+      case Left(e) => Left(e)
+      case Right(result) =>
+        if (result.status.isSuccess()) {
+          val entity = await(toStrict(result.entity))
+          if (logger.isTraceEnabled()) {
+            val d = debugEntity(entity)
+            logger.trace(s"Unmarshalling entity on $uri. Response was \n$d\n")
           }
-          case _ => await(Unmarshal(entity).to[TResult]
-        .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
-        .recover { case e: Exception => {
-          Try(().asInstanceOf[TResult]) match {
-            case scala.util.Success(value) => Right(value)
-            case scala.util.Failure(f) => Left(new Exception(s"Error while un-marshalling response with code ${result.status.intValue()} into ${classTag[TResult].runtimeClass.getName}.\nResponse content was: ${debugEntity(entity)}", e))
-        } }})
-        }
 
-
-
-        if (logger.isTraceEnabled()) {
-          for (_ <- managed(MDC.putCloseable("responsedata", e.toString))) {
-            logger.trace(s"Received data from uri $uri")
+          if(isUnit[TResult]) {
+            Right(().asInstanceOf[TResult])
+          } else {
+            val e = result.status.intValue() match {
+              case 204 => Left(new Exception(s"Error while converting result with code ${result.status.intValue()} into a response of type ${classTag[TResult].runtimeClass.getName}."))
+              case _ => await(Unmarshal(entity).to[TResult]
+                .map(o => Right(o).asInstanceOf[Either[Exception, TResult]])
+                .recover { case e: Exception => Left(new Exception(s"Error while un-marshalling response with code ${result.status.intValue()} into ${classTag[TResult].runtimeClass.getName}.\nResponse content was: ${debugEntity(entity)}", e))
+                })
+            }
+            if (logger.isTraceEnabled()) {
+              for (_ <- managed(MDC.putCloseable("responsedata", e.toString))) {
+                logger.trace(s"Received data from uri $uri")
+              }
+            }
+            e
           }
+        } else {
+          val d = debugEntity(await(toStrict(result.entity)))
+          Left(new IllegalStateException(s"Http request responded with ${result.status.intValue()}: ${result.status.value}. Content was: \n$d\n"))
         }
-        e
-      } else {
-        val d = debugEntity(await(toStrict(result.entity)))
-        Left(new IllegalStateException(s"Http request responded with ${result.status.intValue()}: ${result.status.value}. Content was: \n$d\n"))
-      }
-  }
+    }
 
 }
 

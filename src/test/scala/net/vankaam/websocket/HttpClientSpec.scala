@@ -7,7 +7,9 @@ import org.joda.time.Duration
 import org.scalatest.AsyncFlatSpec
 
 import scala.async.Async.{async, await}
-import scala.util.Failure
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
+import scala.util.{Failure, Try}
 
 
 case class Data(name: String)
@@ -34,4 +36,21 @@ class HttpClientSpec extends AsyncFlatSpec {
 
     assert(r.isLeft)
   }
+
+
+  "Unit casts" should "throw an exception even with type-erasure" in {
+    val client = new HttpClient(ConfigFactory.load(),this.getClass.getClassLoader)
+
+    val r = client.isUnit[Int]
+    val r2 = client.isUnit[Unit]
+    val arr = client.isUnit[Array[Int]]
+
+    assert(!r)
+    assert(r2)
+    assert(!arr)
+  }
+
+
+
+
 }
